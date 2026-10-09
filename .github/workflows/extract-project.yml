@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main:
+      - main
+    paths:
+      - '.github/workflows/extract-project.yml'
 
 permissions:
   contents: write
@@ -26,7 +28,7 @@ jobs:
           cp -a .extract/EL-KALEL_Waste_Management_System_v5/. .
 
           rm -rf .extract
-rm -f EL-KALEL_Waste_Management_System_v6_customer_management.zip
+                    rm -f EL-KALEL_Waste_Management_System_v6_customer_management.zip
 
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 
