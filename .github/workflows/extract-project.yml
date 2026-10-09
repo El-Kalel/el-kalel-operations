@@ -24,7 +24,7 @@ jobs:
           rm -rf .extract
           mkdir .extract
 
-          unzip -q EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
+          unzip -q EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip -d .extract
           cp -a .extract/EL-KALEL_Waste_Management_System_v5/. .
 
           rm -rf .extract
