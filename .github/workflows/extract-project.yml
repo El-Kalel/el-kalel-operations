@@ -1,47 +1,20 @@
-name: Extract EL-KALEL Project
+name: EL-KALEL Project Check
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/extract-project.yml'
-
-permissions:
-  contents: write
 
 jobs:
-  extract:
+  check:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract application
+      - name: Verify application files
         run: |
-          rm -rf .extract
-          mkdir .extract
-
-          unzip -q EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip -d .extract
-          cp -a .extract/EL-KALEL_Waste_Management_System_v5/. .
-
-          rm -rf .extract
-          rm -f EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
-
-          find . -type d -name "__pycache__" -prune -exec rm -rf {} +
-
-      - name: Commit extracted application
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Extract EL-KALEL application"
-            git push
-          fi
+          test -f backend/app.py
+          test -f backend/requirements.txt
+          test -f frontend/index.html
+          echo "EL-KALEL application files are present."
+          echo "Project verification successful."
