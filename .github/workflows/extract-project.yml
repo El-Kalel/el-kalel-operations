@@ -24,11 +24,11 @@ jobs:
           rm -rf .extract
           mkdir .extract
 
-          unzip -q EL-KALEL_Waste_Management_System_v6_customer_management.zip -d .extract
+          unzip -q EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
           cp -a .extract/EL-KALEL_Waste_Management_System_v5/. .
 
           rm -rf .extract
-                    rm -f EL-KALEL_Waste_Management_System_v6_customer_management.zip
+                    rm -f EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
 
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 
