@@ -23,6 +23,12 @@ DB_URL = os.getenv('DATABASE_URL', f"sqlite:///{BASE/'el_kalel.db'}")
 engine = create_engine(DB_URL, connect_args={'check_same_thread': False} if DB_URL.startswith('sqlite') else {})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 pwd = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+def password_for_bcrypt(value):
+    # bcrypt only accepts passwords up to 72 bytes. Keep existing hashes compatible
+    # while preventing startup/login failure when an environment password is longer.
+    return value.encode('utf-8')[:72].decode('utf-8', 'ignore')
+
 SECRET = os.getenv('JWT_SECRET', '') or 'ELKALEL-CHANGE-ME-IN-PRODUCTION-' + secrets.token_hex(16)
 ALGO='HS256'
 
@@ -92,7 +98,7 @@ def obj(x): return {c.name:getattr(x,c.name) for c in x.__table__.columns}
 def seed():
     s=SessionLocal()
     try:
-        if not s.query(User).first(): s.add(User(username='admin',password_hash=pwd.hash(os.getenv('ADMIN_PASSWORD','ChangeMe123!')),role='super_admin'))
+        if not s.query(User).first(): s.add(User(username='admin',password_hash=pwd.hash(password_for_bcrypt(os.getenv('ADMIN_PASSWORD','ChangeMe123!'))),role='super_admin'))
         if not s.query(Staff).first(): s.add_all([Staff(name='Operations Admin',phone='',role='Administrator'),Staff(name='Collection Team 1',phone='',role='Collector')])
         if not s.query(Truck).first(): s.add(Truck(plate_number='ELK-001',name='EL-KALEL Truck 1',capacity=10,status='available'))
         if not s.query(SMSTemplate).first(): s.add_all([SMSTemplate(name='collection_reminder',message='EL-KALEL ENTERPRISE: Waste collection is scheduled for {date} in {area}. Please bring out your rubbish/dustbin for easy access and collection.'),SMSTemplate(name='payment_reminder',message='EL-KALEL ENTERPRISE: Your waste service payment is due. Customer {code}, balance GHS {balance}. Please make payment to continue uninterrupted service.')])
@@ -155,7 +161,7 @@ def health(s:Session=Depends(db)):
 @app.post('/api/login')
 def login(x:Login,s:Session=Depends(db)):
     u=s.query(User).filter(User.username==x.username).first()
-    if not u or not u.active or not pwd.verify(x.password,u.password_hash): raise HTTPException(401,'Invalid username or password')
+    if not u or not u.active or not pwd.verify(password_for_bcrypt(x.password),u.password_hash): raise HTTPException(401,'Invalid username or password')
     return {'token':token_for(u),'user':{'id':u.id,'username':u.username,'role':u.role,'staff_id':u.staff_id}}
 @app.get('/api/me')
 def me(u=Depends(auth)): return {'id':u.id,'username':u.username,'role':u.role,'staff_id':u.staff_id}
@@ -173,7 +179,7 @@ def users(u=Depends(require_perm('manage_staff')),s:Session=Depends(db)): return
 @app.post('/api/users')
 def add_user(x:UserIn,u=Depends(require_perm('manage_staff')),s:Session=Depends(db)):
     if s.query(User).filter(User.username==x.username).first(): raise HTTPException(409,'Username already exists')
-    z=User(username=x.username,password_hash=pwd.hash(x.password),role=x.role,staff_id=x.staff_id,active=x.active); s.add(z); s.flush(); audit(s,u,'CREATE','user',z.id,z.username); s.commit(); return obj(z)
+    z=User(username=x.username,password_hash=pwd.hash(password_for_bcrypt(x.password)),role=x.role,staff_id=x.staff_id,active=x.active); s.add(z); s.flush(); audit(s,u,'CREATE','user',z.id,z.username); s.commit(); return obj(z)
 
 @app.get('/api/zones')
 def zones(u=Depends(auth),s:Session=Depends(db)): return [obj(x) for x in s.query(Zone).order_by(Zone.name).all()]
