@@ -28,7 +28,7 @@ jobs:
           cp -a .extract/EL-KALEL_Waste_Management_System_v5/. .
 
           rm -rf .extract
-                    rm -f EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
+rm -f EL-KALEL_Waste_Management_System_v7_bcrypt_fix.zip
 
           find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 
