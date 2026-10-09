@@ -190,13 +190,32 @@ def customers(q:str='',area:str='',status:str='',limit:int=500,u=Depends(auth),s
     return [obj(x) for x in query.order_by(Customer.name).limit(min(limit,1000)).all()]
 @app.post('/api/customers')
 def add_customer(x:CustomerIn,u=Depends(require_perm('manage_customers')),s:Session=Depends(db)):
-    c=Customer(customer_code=next_code(s),**x.model_dump()); c.balance=x.monthly_fee; s.add(c); s.flush(); audit(s,u,'CREATE','customer',c.id,c.customer_code); s.commit(); return obj(c)
+    phone=''.join(ch for ch in x.phone if ch.isdigit() or ch=='+').strip()
+    if phone and s.query(Customer).filter(Customer.phone==phone).first():
+        raise HTTPException(409,'A customer with this phone number already exists. Search for the existing customer instead of creating a duplicate.')
+    c=Customer(customer_code=next_code(s),**{**x.model_dump(),'phone':phone}); c.balance=x.monthly_fee; s.add(c); s.flush(); audit(s,u,'CREATE','customer',c.id,c.customer_code); s.commit(); return obj(c)
 @app.put('/api/customers/{cid}')
 def update_customer(cid:int,x:CustomerUpdate,u=Depends(require_perm('manage_customers')),s:Session=Depends(db)):
     c=s.get(Customer,cid)
     if not c: raise HTTPException(404,'Customer not found')
-    for k,v in x.model_dump().items(): setattr(c,k,v)
+    phone=''.join(ch for ch in x.phone if ch.isdigit() or ch=='+').strip()
+    duplicate=s.query(Customer).filter(Customer.phone==phone,Customer.id!=cid).first() if phone else None
+    if duplicate:
+        raise HTTPException(409,'Another customer already uses this phone number.')
+    data=x.model_dump()
+    data['phone']=phone
+    for k,v in data.items(): setattr(c,k,v)
     audit(s,u,'UPDATE','customer',cid,c.customer_code); s.commit(); return obj(c)
+@app.delete('/api/customers/{cid}')
+def delete_customer(cid:int,u=Depends(require_perm('manage_customers')),s:Session=Depends(db)):
+    c=s.get(Customer,cid)
+    if not c: raise HTTPException(404,'Customer not found')
+    payments=s.query(Payment).filter(Payment.customer_id==cid).count()
+    collections=s.query(Collection).filter(Collection.customer_id==cid).count()
+    if payments or collections:
+        raise HTTPException(409,'This customer has payment or collection records and cannot be deleted. Deactivate the customer instead.')
+    code=c.customer_code
+    s.delete(c); audit(s,u,'DELETE','customer',cid,code); s.commit(); return {'ok':True,'customer_code':code}
 @app.get('/api/customers/{cid}/statement')
 def customer_statement(cid:int,u=Depends(auth),s:Session=Depends(db)):
     c=s.get(Customer,cid)
